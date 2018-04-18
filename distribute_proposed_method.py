@@ -85,6 +85,8 @@ print('Detected syllable onset times (second):')
 print(boundaries_syllable_start_time)
 print('\n')
 
-figure_plot_joint(mfcc_line=log_mel_old,
+figure_plot_joint(score_png='./score_png.png',
+                  mfcc_line=log_mel_old,
                   obs_syllable=obs_syllable,
-                  boundaries_syllable_start_time=boundaries_syllable_start_time)
+                  boundaries_syllable_start_time=boundaries_syllable_start_time,
+                  labels_syllable=syllable_labels)

@@ -10,6 +10,7 @@ def midi_event_parser(fn):
 
     s = music21.midi.translate.midiFileToStream(mf)
 
+
     part = s.parts[0]
 
     part_tuples = []
