@@ -10,7 +10,6 @@ def midi_event_parser(fn):
 
     s = music21.midi.translate.midiFileToStream(mf)
 
-
     part = s.parts[0]
 
     part_tuples = []
@@ -19,7 +18,7 @@ def midi_event_parser(fn):
             if y[0] is part:
                 offset = y[1]
         if getattr(event, 'isNote', None) and event.isNote:
-            part_tuples.append((event.name, event.quarterLength, offset, event.nameWithOctave, event.frequency))
+            part_tuples.append((event.name, event.quarterLength, offset, event.nameWithOctave, event.pitch.freq440))
         if getattr(event, 'isRest', None) and event.isRest:
             part_tuples.append(('Rest', event.quarterLength, offset))
 
@@ -58,24 +57,46 @@ def convert_note_name_to_pho(note_name):
     return out
 
 
+def convert_note_name_to_pho_tr(note_name):
+    if note_name == 'C':
+        out = ['d', 'o']
+    elif note_name == 'D':
+        out = ['r', 'e']
+    elif note_name == 'E':
+        out = ['m', 'I']
+    elif note_name == 'F':
+        out = ['f', 'a']
+    elif note_name == 'G':
+        out = ['s', 'O']
+    elif note_name == 'A':
+        out = ['l', 'a']
+    elif note_name == 'B':
+        out = ['s', 'I']
+    else:
+        raise ValueError('{} doesn''t exist.'.format(note_name))
+    return out
+
+
 def convert_event_2_mbrola_format(event_tuples, tempo):
     unit_length = 60.0*1000.0/tempo
-    out_syl_list = []
+    out_syl_list = [['_', 100]]
     for e in event_tuples:
         dur = e[1] * unit_length
         if e[0] != 'Rest':
-            consonant, vowal = convert_note_name_to_pho(e[0])
-            list_syl = [[consonant, str(100), str(0), str(int(e[-1]))], [vowal, str(int(dur-100))]]
+            consonant, vowal = convert_note_name_to_pho_tr(e[0])
+            list_syl = [[consonant, str(100), str(0), str(int(e[-1]/4.0))],
+                        [vowal, str(int(dur-100)), str(100), str(int(e[-1]/4.0))]]
         else:
             list_syl = [['_', str(int(dur))]]
 
         out_syl_list += list_syl
+    out_syl_list += [['_', 100]]
     return out_syl_list
 
 
 if __name__ == '__main__':
 
-    filename_exercise = '/home/gong/PycharmProjects/syllable-segmentation-solfege-demo/Dannhauser-exercises/exercise-43.mid'
+    filename_exercise = './Dannhauser-exercises/exercise-43.mid'
     part_tuples = midi_event_parser(filename_exercise)
     tempo = 88
     note_seq_demo = part_tuples[1:18]
