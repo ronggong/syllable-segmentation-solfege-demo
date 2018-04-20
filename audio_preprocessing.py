@@ -1,6 +1,12 @@
 from madmom.processors import SequentialProcessor
 from general.Fprev_sub import Fprev_sub
+import soundfile as sf
 import numpy as np
+import webrtcvad
+import contextlib
+import resampy
+import wave
+import os
 
 EPSILON = np.spacing(1)
 
@@ -86,3 +92,80 @@ def feature_reshape(feature, nlen=10):
             feature_frame[:,jj] = feature[ii][n_row*jj:n_row*(jj+1)]
         feature_reshaped[ii,:,:] = feature_frame
     return feature_reshaped
+
+
+class Frame(object):
+    """Represents a "frame" of audio data."""
+    def __init__(self, bytes, timestamp, duration):
+        self.bytes = bytes
+        self.timestamp = timestamp
+        self.duration = duration
+
+
+def frame_generator(frame_duration_ms, hopsize_ms, audio, sample_rate):
+    """Generates audio frames from PCM audio data.
+    Takes the desired frame duration in milliseconds, the PCM data, and
+    the sample rate.
+    Yields Frames of the requested duration.
+    """
+    framesize = int(sample_rate * (frame_duration_ms / 1000.0) * 2)
+    hopsize = int(sample_rate * (hopsize_ms / 1000.0) * 2)
+    offset = 0
+    timestamp = 0.0
+    offset_timestamp = (float(hopsize) / sample_rate) / 2.0
+    duration = (float(framesize) / sample_rate) / 2.0
+    while offset + framesize < len(audio):
+        yield Frame(audio[offset:offset + framesize], timestamp, duration)
+        timestamp += offset_timestamp
+        offset += hopsize
+
+
+def read_wave(path):
+    """Reads a .wav file.
+    Takes the path, and returns (PCM audio data, sample rate).
+    """
+    with contextlib.closing(wave.open(path, 'rb')) as wf:
+        num_channels = wf.getnchannels()
+        assert num_channels == 1
+        sample_width = wf.getsampwidth()
+        assert sample_width == 2
+        sample_rate = wf.getframerate()
+        assert sample_rate in (8000, 16000, 32000)
+        pcm_data = wf.readframes(wf.getnframes())
+        return pcm_data, sample_rate
+
+
+def VAD(wav_file, hopsize_t):
+
+    resample_fs = 32000
+    current_path = os.path.dirname(os.path.realpath(__file__))
+    path_temp_wav = os.path.join(current_path, '.', 'temp', 'temp.wav')
+    wav_data, wav_fs = sf.read(wav_file)
+    vad_results = np.array([], dtype=np.bool)
+
+    # convert the audio to the 1 channel
+    if len(wav_data.shape) == 2:
+        if wav_data.shape[1] == 2:
+            wav_data = (wav_data[:, 0] + wav_data[:, 1]) / 2.0
+
+    # resample the audio samples
+    wav_data_32000 = resampy.resample(wav_data, wav_fs, resample_fs)
+
+    # write the audio
+    sf.write(path_temp_wav, wav_data_32000, resample_fs)
+
+    # read the wav in bytes, the length will be 2 times of the normal wav data
+    wav_data, wav_fs = read_wave(path_temp_wav)
+
+    # gnerate frames
+    frames = frame_generator(frame_duration_ms=30, hopsize_ms=hopsize_t*1000, audio=wav_data, sample_rate=wav_fs)
+
+    vad = webrtcvad.Vad()
+
+    # mode 0-3, 3 is the most aggressive one
+    vad.set_mode(2)
+    for frame in frames:
+        is_speech = vad.is_speech(buf=frame.bytes, sample_rate=wav_fs)
+        vad_results = np.append(vad_results, is_speech)
+
+    return vad_results.astype(int)

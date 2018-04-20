@@ -5,6 +5,7 @@ import soundfile as sf
 from keras.models import load_model
 from audio_preprocessing import get_log_mel_madmom
 from audio_preprocessing import feature_reshape
+from audio_preprocessing import VAD
 
 import pyximport
 pyximport.install(reload_support=True,
@@ -15,6 +16,7 @@ import viterbiDecodingPhonemeSeg
 from general.parameters import hopsize_t
 from general.parameters import varin
 from general.utilFunctions import smooth_obs
+from general.utilFunctions import parse_score
 
 from plot_code import figure_plot_joint
 
@@ -29,16 +31,11 @@ model_joint = load_model(os.path.join(joint_cnn_model_path, 'jan_joint0.h5'))
 scaler_joint = pickle.load(open(os.path.join(joint_cnn_model_path, 'scaler_joint.pkl'), 'rb'), encoding='latin')
 
 # load wav, duration and labels
-wav_file = './Mbrola/solfege_demo_44.wav'
+wav_file = './data/reference_exercise_03_norm.wav'
+score_file = './data/score_exercise_03.txt'
+score_png = './data/exercise_03.png'
 
-# parse score
-with open('./solfege_score.txt', 'r') as scorefile:
-    data = scorefile.readlines()
-    syllable_durations, syllable_labels = [], []
-    for line in data:
-        syllable_labels.append(line.split()[0])
-        syllable_durations.append(float(line.split()[1]))
-syllable_durations = np.array(syllable_durations)
+syllable_durations, syllable_labels = parse_score(filename_score=score_file)
 
 print('syllable durations (second):')
 print(syllable_durations)
@@ -51,6 +48,8 @@ print('\n')
 # get wav duration
 data_wav, fs_wav = sf.read(wav_file)
 time_wav = len(data_wav)/float(fs_wav)
+
+results_vad = VAD(wav_file=wav_file, hopsize_t=hopsize_t)
 
 # calculate log mel feature
 log_mel_old = get_log_mel_madmom(wav_file, fs=fs_wav, hopsize_t=hopsize_t, channel=1)
@@ -85,8 +84,9 @@ print('Detected syllable onset times (second):')
 print(boundaries_syllable_start_time)
 print('\n')
 
-figure_plot_joint(score_png='./score_png.png',
+figure_plot_joint(score_png=score_png,
                   mfcc_line=log_mel_old,
+                  vad=results_vad,
                   obs_syllable=obs_syllable,
                   boundaries_syllable_start_time=boundaries_syllable_start_time,
                   labels_syllable=syllable_labels)
