@@ -12,6 +12,7 @@ import matplotlib.image as mpimg
 
 def figure_plot_joint(score_png,
                       mfcc_line,
+                      onset_time_ref,
                       vad,
                       obs_syllable,
                       boundaries_syllable_start_time,
@@ -27,6 +28,8 @@ def figure_plot_joint(score_png,
     y = np.arange(0, 80)
     x = np.arange(0, mfcc_line.shape[0]) * hopsize_t
     plt.pcolormesh(x, y, np.transpose(mfcc_line[:, 80 * 7:80 * 8]))
+    for otr in onset_time_ref:
+        plt.axvline(otr, color='r', linewidth=2)
     ax2.set_ylabel('Mel bands', fontsize=12)
     ax2.get_xaxis().set_visible(False)
     ax2.axis('tight')

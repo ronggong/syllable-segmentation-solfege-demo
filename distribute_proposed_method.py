@@ -17,6 +17,7 @@ from general.parameters import hopsize_t
 from general.parameters import varin
 from general.utilFunctions import smooth_obs
 from general.utilFunctions import parse_score
+from general.utilFunctions import get_onset_time_syllable_duration_ref
 
 from plot_code import figure_plot_joint
 
@@ -35,7 +36,7 @@ wav_file = './data/reference_exercise_03_norm.wav'
 score_file = './data/score_exercise_03.txt'
 score_png = './data/exercise_03.png'
 
-syllable_durations, syllable_labels = parse_score(filename_score=score_file)
+tempo, syllable_durations, syllable_labels, beats = parse_score(filename_score=score_file)
 
 print('syllable durations (second):')
 print(syllable_durations)
@@ -45,9 +46,17 @@ print('syllable labels:')
 print(syllable_labels)
 print('\n')
 
+print(beats)
+
 # get wav duration
 data_wav, fs_wav = sf.read(wav_file)
 time_wav = len(data_wav)/float(fs_wav)
+
+onset_time_ref, syllable_durations_ref = get_onset_time_syllable_duration_ref(syllable_durations=syllable_durations,
+                                                                              len_audio=time_wav)
+
+print(onset_time_ref)
+print(syllable_durations_ref)
 
 results_vad = VAD(wav_file=wav_file, hopsize_t=hopsize_t)
 
@@ -79,13 +88,17 @@ boundaries_syllable = viterbiDecodingPhonemeSeg.viterbiSegmental2(obs_syllable, 
 # syllable boundaries
 boundaries_syllable_start_time = np.array(boundaries_syllable[:-1])*hopsize_t
 boundaries_syllable_end_time = np.array(boundaries_syllable[1:])*hopsize_t
+syllable_durations_detected = boundaries_syllable_end_time - boundaries_syllable_start_time
 
 print('Detected syllable onset times (second):')
 print(boundaries_syllable_start_time)
 print('\n')
 
+print(syllable_durations_detected)
+
 figure_plot_joint(score_png=score_png,
                   mfcc_line=log_mel_old,
+                  onset_time_ref=onset_time_ref,
                   vad=results_vad,
                   obs_syllable=obs_syllable,
                   boundaries_syllable_start_time=boundaries_syllable_start_time,
