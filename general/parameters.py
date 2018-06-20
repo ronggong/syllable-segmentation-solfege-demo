@@ -30,4 +30,4 @@ hopsize_t = 0.010
 varin = {}
 # parameters of viterbi
 varin['delta_mode'] = 'proportion'
-varin['delta'] = 0.35
+varin['delta'] = 0.15
